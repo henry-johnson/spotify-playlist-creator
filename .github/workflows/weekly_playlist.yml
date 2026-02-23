@@ -1,0 +1,37 @@
+name: Weekly Spotify Playlist
+
+on:
+  schedule:
+    - cron: "0 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  models: read
+
+jobs:
+  build-playlist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create weekly playlist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_MODEL: ${{ vars.GITHUB_MODEL || 'chatgpt-5.2' }}
+          GITHUB_MODEL_TEMPERATURE: ${{ vars.GITHUB_MODEL_TEMPERATURE || '0.8' }}
+          PLAYLIST_SYSTEM_PROMPT: ${{ vars.PLAYLIST_SYSTEM_PROMPT || '' }}
+          PLAYLIST_PROMPT_TEMPLATE: ${{ vars.PLAYLIST_PROMPT_TEMPLATE || '' }}
+          PLAYLIST_PROMPT_FILE: ${{ vars.PLAYLIST_PROMPT_FILE || 'prompts/playlist_user_prompt.txt' }}
+          SPOTIFY_TOP_TRACKS_LIMIT: ${{ vars.SPOTIFY_TOP_TRACKS_LIMIT || '15' }}
+          SPOTIFY_RECOMMENDATIONS_LIMIT: ${{ vars.SPOTIFY_RECOMMENDATIONS_LIMIT || '30' }}
+          SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
+          SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
+          SPOTIFY_REFRESH_TOKEN: ${{ secrets.SPOTIFY_REFRESH_TOKEN }}
+        run: python scripts/create_weekly_playlist.py

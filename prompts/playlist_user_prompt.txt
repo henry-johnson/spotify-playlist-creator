@@ -1,0 +1,12 @@
+Create metadata for a weekly Spotify playlist.
+
+Context:
+- Preferred genres: indie pop, alt rock, synthwave
+- Top artists this week: {top_artists}
+- Top tracks this week: {top_tracks}
+
+Requirements:
+- Keep the title short and memorable.
+- Keep the description to one concise paragraph.
+- Avoid emojis.
+- Return strict JSON only with keys: title, description.
