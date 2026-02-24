@@ -11,12 +11,13 @@ Automate a **weekly Spotify playlist** using:
 Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_playlist.py` to:
 
 1. Refresh your Spotify access token.
-2. Build the target playlist week name (for example `2026-W08`) and skip if it already exists.
-3. Load source data from the previous week playlist (for example `2026-W07`) when available.
-4. Fall back to your `short_term` top tracks/artists when a previous week playlist does not exist.
-5. Search Spotify for discovery tracks by genre/artist.
-6. Ask GitHub Models for a grounded playlist description.
-7. Create the target week private playlist and add tracks.
+2. Build the target playlist week name (for example `2026-W08`).
+3. If `playlist-read-private` is granted, skip creation when that week already exists.
+4. If `playlist-read-private` is granted, load source data from the previous week playlist (for example `2026-W07`).
+5. Fall back to your `short_term` top tracks/artists when previous week playlist data is unavailable.
+6. Search Spotify for discovery tracks by genre/artist.
+7. Ask GitHub Models for a grounded playlist description.
+8. Create the target week private playlist and add tracks.
 
 ## 1) Create a Spotify app
 
@@ -75,12 +76,12 @@ Prompt customization:
 
 ## 4) Run the workflow
 
-- Manual: **Actions → Weekly Spotify Playlist → Run workflow**
+- Manual: **Actions → Build Weekly Spotify Playlist → Run workflow**
 - Scheduled: Every Monday at `03:00 UTC` (3 AM GMT / 4 AM BST) (`cron: 0 3 * * 1`)
 
 ## Files
 
-- `.github/workflows/weekly_playlist.yml` — scheduler and job definition.
+- `.github/workflows/build-weekly-spotify-playlist.yml` — scheduler and job definition.
 - `scripts/create_weekly_playlist.py` — Spotify + GitHub Models integration logic.
 - `prompts/playlist_user_prompt.md` — default user prompt template.
 
