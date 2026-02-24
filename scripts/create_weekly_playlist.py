@@ -104,10 +104,10 @@ def main() -> None:
                 owner_id=user_id,
             )
         except urllib.error.HTTPError as err:
-            if err.code == 403:
+            if err.code in (403, 429):
                 print(
-                    "Could not read existing playlists (403). "
-                    "Continuing without dedupe.",
+                    "Could not read existing playlists "
+                    f"({err.code}). Continuing without dedupe.",
                     file=sys.stderr,
                     flush=True,
                 )
@@ -148,11 +148,23 @@ def main() -> None:
     source_playlist_id: str | None = None
 
     if can_read_private:
-        previous_playlist = spotify_find_playlist_by_name(
-            token,
-            source_week,
-            owner_id=user_id,
-        )
+        try:
+            previous_playlist = spotify_find_playlist_by_name(
+                token,
+                source_week,
+                owner_id=user_id,
+            )
+        except urllib.error.HTTPError as err:
+            if err.code in (403, 429):
+                print(
+                    f"Could not read previous playlists ({err.code}); "
+                    "using short-term listening fallback.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                previous_playlist = None
+            else:
+                raise
         if previous_playlist:
             previous_tracks = spotify_get_playlist_tracks(
                 token,

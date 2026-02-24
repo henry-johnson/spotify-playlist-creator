@@ -24,7 +24,7 @@ DEFAULT_RECOMMENDATIONS_PROMPT_FILE = "prompts/recommendations_prompt.md"
 DEFAULT_ARTWORK_PROMPT_FILE = "prompts/playlist_artwork_prompt.md"
 
 # ── Retry config ────────────────────────────────────────────────────
-MAX_RETRIES = 3
+MAX_RETRIES = 5
 RETRY_BACKOFF = 2.0  # seconds
 
 

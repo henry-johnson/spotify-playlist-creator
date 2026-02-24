@@ -46,7 +46,21 @@ def http_json(
             details = err.read().decode("utf-8", errors="replace")
             # Retry on 429 (rate limit) and 5xx (server errors)
             if err.code in (429, 500, 502, 503, 504) and attempt < retries - 1:
+                retry_after_header = ""
+                if err.headers is not None:
+                    retry_after_header = str(
+                        err.headers.get("Retry-After", ""),
+                    ).strip()
+
                 wait = RETRY_BACKOFF * (attempt + 1)
+                if retry_after_header:
+                    try:
+                        retry_after_seconds = float(retry_after_header)
+                    except ValueError:
+                        retry_after_seconds = 0.0
+                    if retry_after_seconds > 0:
+                        wait = retry_after_seconds
+
                 print(
                     f"HTTP {err.code} on attempt {attempt + 1}/{retries}. "
                     f"Retrying in {wait:.1f}s…",
