@@ -12,8 +12,8 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 
 1. Refresh your Spotify access token.
 2. Pull your top tracks (`short_term`).
-3. Find related artists based on your top artists.
-4. Pull discovery tracks from those related artists.
+3. Find your top artists and extract their genres.
+4. Search Spotify for discovery tracks by genre.
 5. Ask GitHub Models for a playlist description.
 6. Create a new private playlist and add the discovery tracks.
 

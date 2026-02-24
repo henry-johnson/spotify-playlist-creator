@@ -182,61 +182,61 @@ def spotify_get_top_tracks(token: str, limit: int = 15) -> list[dict[str, Any]]:
     return payload.get("items", [])
 
 
-def spotify_get_related_artists(token: str, artist_id: str) -> list[str]:
-    try:
-        data = http_json(
-            "GET",
-            f"{SPOTIFY_API_BASE}/artists/{artist_id}/related-artists",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        return [a["id"] for a in data.get("artists", [])[:3]]
-    except Exception:
-        return []
+def spotify_get_top_artists(token: str, limit: int = 10) -> list[dict[str, Any]]:
+    params = urllib.parse.urlencode({"time_range": "short_term", "limit": str(limit)})
+    payload = http_json(
+        "GET",
+        f"{SPOTIFY_API_BASE}/me/top/artists?{params}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    return payload.get("items", [])
 
 
-def spotify_get_artist_top_tracks(token: str, artist_id: str) -> list[str]:
+def spotify_search_tracks_by_genre(token: str, genre: str, limit: int = 10) -> list[str]:
+    params = urllib.parse.urlencode({
+        "q": f"genre:{genre}",
+        "type": "track",
+        "limit": str(limit),
+    })
     try:
-        data = http_json(
+        payload = http_json(
             "GET",
-            f"{SPOTIFY_API_BASE}/artists/{artist_id}/top-tracks?market=GB",
+            f"{SPOTIFY_API_BASE}/search?{params}",
             headers={"Authorization": f"Bearer {token}"},
         )
-        return [t["uri"] for t in data.get("tracks", [])[:3]]
+        return [t["uri"] for t in payload.get("tracks", {}).get("items", []) if t.get("uri")]
     except Exception:
         return []
 
 
 def spotify_get_discovery_tracks(
-    token: str, top_tracks: list[dict[str, Any]], limit: int = 30
+    token: str,
+    top_tracks: list[dict[str, Any]],
+    top_artists: list[dict[str, Any]],
+    limit: int = 30,
 ) -> list[str]:
-    # Extract unique seed artist IDs from top tracks
-    seen_artists: set[str] = set()
-    seed_artist_ids: list[str] = []
-    for track in top_tracks:
-        for artist in track.get("artists", []):
-            aid = artist.get("id")
-            if aid and aid not in seen_artists:
-                seen_artists.add(aid)
-                seed_artist_ids.append(aid)
-        if len(seed_artist_ids) >= 5:
-            break
+    # Collect known track URIs to avoid duplicates
+    known_uris: set[str] = {t["uri"] for t in top_tracks if t.get("uri")}
 
-    # Find related artists
-    related_ids: list[str] = []
-    for artist_id in seed_artist_ids:
-        related_ids.extend(spotify_get_related_artists(token, artist_id))
-
-    # Deduplicate, exclude seed artists
-    related_ids = list(dict.fromkeys(
-        rid for rid in related_ids if rid not in seen_artists
+    # Extract unique genres from top artists
+    genres: list[str] = list(dict.fromkeys(
+        genre
+        for artist in top_artists
+        for genre in artist.get("genres", [])
     ))
 
-    # Pull top tracks from related artists
+    if not genres:
+        # Fall back to searching by artist name if no genres available
+        genres = [f'artist:"{a["name"]}"' for a in top_artists[:5]]
+
     discovery_uris: list[str] = []
-    for artist_id in related_ids:
+    for genre in genres:
         if len(discovery_uris) >= limit:
             break
-        discovery_uris.extend(spotify_get_artist_top_tracks(token, artist_id))
+        tracks = spotify_search_tracks_by_genre(token, genre, limit=10)
+        for uri in tracks:
+            if uri not in known_uris and uri not in discovery_uris:
+                discovery_uris.append(uri)
 
     return discovery_uris[:limit]
 
@@ -280,8 +280,9 @@ def main() -> None:
     me = spotify_get_me(token)
     user_id: str = me["id"]
 
-    print("Fetching top tracks…")
+    print("Fetching top tracks and artists…")
     top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
+    top_artists = spotify_get_top_artists(token, limit=10)
     if len(top_tracks) < 5:
         print(
             f"Not enough listening history — got {len(top_tracks)} tracks, need at least 5.",
@@ -289,8 +290,8 @@ def main() -> None:
         )
         sys.exit(1)
 
-    print("Fetching discovery tracks via related artists…")
-    rec_uris = spotify_get_discovery_tracks(token, top_tracks, limit=recommendation_limit)
+    print("Fetching discovery tracks via genre search…")
+    rec_uris = spotify_get_discovery_tracks(token, top_tracks, top_artists, limit=recommendation_limit)
     if not rec_uris:
         print("No discovery tracks found.", file=sys.stderr)
         sys.exit(1)
