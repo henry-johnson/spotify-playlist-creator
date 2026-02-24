@@ -355,10 +355,10 @@ def main() -> None:
     me = spotify_get_me(token)
     user_id: str = me["id"]
     user_country = str(me.get("country", "")).strip().upper() or None
-    search_market = user_country or "from_token"
+    search_market = user_country
     print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
     print(f"User market: {user_country or 'N/A'}", flush=True)
-    print(f"Search market: {search_market}", flush=True)
+    print(f"Search market: {search_market or 'none'}", flush=True)
 
     print("Fetching top tracks and artists…", flush=True)
     top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
@@ -379,8 +379,13 @@ def main() -> None:
         limit=recommendation_limit,
     )
     if not rec_uris:
-        print("No discovery tracks found.", file=sys.stderr)
-        sys.exit(1)
+        print(
+            "No discovery tracks found; using top tracks as fallback.",
+            file=sys.stderr,
+            flush=True,
+        )
+        rec_uris = [track["uri"] for track in top_tracks if track.get("uri")]
+        rec_uris = list(dict.fromkeys(rec_uris))
 
     print("Generating playlist metadata with AI…", flush=True)
     playlist_meta = model_playlist_metadata(
