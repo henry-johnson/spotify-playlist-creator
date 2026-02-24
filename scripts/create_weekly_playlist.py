@@ -79,7 +79,11 @@ def main() -> None:
     existing_playlist_id: str | None = None
     if can_read_private:
         try:
-            existing_target = spotify_find_playlist_by_name(token, target_week)
+            existing_target = spotify_find_playlist_by_name(
+                token,
+                target_week,
+                owner_id=user_id,
+            )
         except urllib.error.HTTPError as err:
             if err.code == 403:
                 print(
@@ -125,7 +129,11 @@ def main() -> None:
     source_playlist_id: str | None = None
 
     if can_read_private:
-        previous_playlist = spotify_find_playlist_by_name(token, source_week)
+        previous_playlist = spotify_find_playlist_by_name(
+            token,
+            source_week,
+            owner_id=user_id,
+        )
         if previous_playlist:
             previous_tracks = spotify_get_playlist_tracks(
                 token,

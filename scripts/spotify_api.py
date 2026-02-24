@@ -66,7 +66,7 @@ def iso_week_label(day: dt.date) -> str:
 
 
 def spotify_find_playlist_by_name(
-    token: str, name: str,
+    token: str, name: str, owner_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Find a playlist by exact name. Returns the first match or None."""
     params = urllib.parse.urlencode({"limit": "50"})
@@ -79,7 +79,14 @@ def spotify_find_playlist_by_name(
             headers={"Authorization": f"Bearer {token}"},
         )
         for playlist in payload.get("items", []):
-            if playlist.get("name") == name:
+            if playlist.get("name") != name:
+                continue
+
+            if owner_id:
+                playlist_owner = (playlist.get("owner") or {}).get("id")
+                if playlist_owner != owner_id:
+                    continue
+
                 return playlist
         next_url = payload.get("next")
 
@@ -173,7 +180,7 @@ def spotify_clear_playlist(token: str, playlist_id: str) -> int:
             )
             break
         except urllib.error.HTTPError as err:
-            if err.code in (400, 404, 405):
+            if err.code in (400, 403, 404, 405):
                 continue
             raise
 
