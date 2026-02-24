@@ -152,7 +152,8 @@ def spotify_clear_playlist(token: str, playlist_id: str) -> int:
     next_url: str | None = (
         f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/items?limit=100"
     )
-    all_uris: list[str] = []
+    tracks_to_remove: list[dict[str, Any]] = []
+    position = 0
 
     while next_url:
         payload = http_json(
@@ -164,22 +165,29 @@ def spotify_clear_playlist(token: str, playlist_id: str) -> int:
             track = item.get("track") or {}
             uri = track.get("uri")
             if uri:
-                all_uris.append(uri)
+                tracks_to_remove.append({"uri": uri, "positions": [position]})
+            position += 1
         next_url = payload.get("next")
 
-    if not all_uris:
+    if not tracks_to_remove:
         return 0
 
-    for i in range(0, len(all_uris), 100):
-        batch = all_uris[i : i + 100]
-        http_json(
+    snapshot_id: str | None = None
+    for i in range(0, len(tracks_to_remove), 100):
+        batch = tracks_to_remove[i : i + 100]
+        body: dict[str, Any] = {"tracks": batch}
+        if snapshot_id:
+            body["snapshot_id"] = snapshot_id
+
+        result = http_json(
             "DELETE",
             f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/tracks",
             headers={"Authorization": f"Bearer {token}"},
-            body={"tracks": [{"uri": uri} for uri in batch]},
+            body=body,
         )
+        snapshot_id = result.get("snapshot_id") or snapshot_id
 
-    return len(all_uris)
+    return len(tracks_to_remove)
 
 
 def spotify_update_playlist_details(

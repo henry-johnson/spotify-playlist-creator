@@ -210,7 +210,7 @@ def main() -> None:
     created_at = dt.datetime.now(dt.timezone.utc).strftime(
         "%b %d, %Y at %I:%M:%S %p UTC",
     )
-    playlist_description = f"Created: {created_at}\n{playlist_description}"
+    playlist_description = f"Created: {created_at} \u2014 {playlist_description}"
 
     # ── Create or overwrite playlist ────────────────────────────────
     playlist_name = target_week
@@ -252,7 +252,7 @@ def main() -> None:
         if uri not in seen:
             seen.add(uri)
             unique_uris.append(uri)
-    rec_uris = unique_uris
+    rec_uris = unique_uris[:100]
     added_count = spotify_add_tracks(token, playlist_id, rec_uris)
     if added_count == 0:
         print(
