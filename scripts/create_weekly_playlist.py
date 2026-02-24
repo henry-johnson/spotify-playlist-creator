@@ -267,12 +267,10 @@ def spotify_get_discovery_tracks(
     return discovery_uris[:limit]
 
 
-def spotify_create_playlist(
-    token: str, user_id: str, name: str, description: str
-) -> str:
+def spotify_create_playlist(token: str, name: str, description: str) -> str:
     payload = http_json(
         "POST",
-        f"{SPOTIFY_API_BASE}/users/{user_id}/playlists",
+        f"{SPOTIFY_API_BASE}/me/playlists",
         headers={"Authorization": f"Bearer {token}"},
         body={"name": name, "description": description, "public": False},
     )
@@ -337,7 +335,7 @@ def main() -> None:
 
     print("Creating playlist…", flush=True)
     try:
-        playlist_id = spotify_create_playlist(token, user_id, playlist_name, playlist_description)
+        playlist_id = spotify_create_playlist(token, playlist_name, playlist_description)
     except urllib.error.HTTPError as err:
         if err.code == 403:
             print(
