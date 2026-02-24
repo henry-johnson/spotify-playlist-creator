@@ -1,11 +1,14 @@
-Based on my Spotify listening from last week, generate a description for my weekly playlist.
+Generate a description for my weekly Spotify playlist.
 
-Last week's top artists: {top_artists}
-Last week's top tracks: {top_tracks}
+Source week: {source_week}
+Target week: {target_week}
+Source week artists: {top_artists}
+Source week tracks: {top_tracks}
 
-The description should:
+The description must:
 
-- Open with a brief summary of what the playlist reflects about last week's listening (mood, themes, genres)
-- Close with a forward-looking sentence introducing what new tracks we're going to explore this week (e.g. "This week we're diving into...")
+- Start with exactly one short, funny, sarcastic sentence that says Henry is a genius (light wording variation is allowed)
+- Ground the rest of the paragraph in the source week listening data and how it informs the target week playlist
+- End with a forward-looking sentence introducing what new tracks we're going to explore this week (e.g. "This week we're diving into...")
 - Be one short paragraph, no emojis
 - Return strict JSON with a single key: description

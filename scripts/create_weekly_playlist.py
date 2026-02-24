@@ -83,7 +83,12 @@ def http_json(
     raise RuntimeError(f"All {retries} retries exhausted for {method} {url}")
 
 
-REQUIRED_SCOPES = {"user-top-read", "playlist-modify-private", "playlist-modify-public"}
+REQUIRED_SCOPES = {
+    "user-top-read",
+    "playlist-modify-private",
+    "playlist-modify-public",
+    "playlist-read-private",
+}
 
 
 def spotify_access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
@@ -113,7 +118,12 @@ def spotify_access_token(client_id: str, client_secret: str, refresh_token: str)
     return response["access_token"]
 
 
-def build_model_prompts(top_tracks: list[dict[str, Any]]) -> tuple[str, str]:
+def build_model_prompts(
+    top_tracks: list[dict[str, Any]],
+    *,
+    source_week: str,
+    target_week: str,
+) -> tuple[str, str]:
     """Return (system_prompt, user_prompt) for the model request."""
     system_prompt = (
         "You are a music curator writing weekly playlist descriptions. "
@@ -125,9 +135,11 @@ def build_model_prompts(top_tracks: list[dict[str, Any]]) -> tuple[str, str]:
     prompt_file = os.getenv("PLAYLIST_PROMPT_FILE", DEFAULT_USER_PROMPT_FILE)
     user_template = read_file_if_exists(prompt_file) or (
         "Create metadata for a weekly Spotify playlist based on my recent listening.\n"
+        "Source week: {source_week}.\n"
+        "Target week: {target_week}.\n"
         "Top artists: {top_artists}.\n"
         "Top tracks: {top_tracks}.\n"
-        "Return strict JSON with keys title and description."
+        "Return strict JSON with a single key: description."
     )
 
     top_artists = ", ".join(
@@ -143,6 +155,8 @@ def build_model_prompts(top_tracks: list[dict[str, Any]]) -> tuple[str, str]:
     )
 
     user_prompt = user_template.format(
+        source_week=source_week,
+        target_week=target_week,
         top_artists=top_artists or "Unknown",
         top_tracks=top_track_names or "Unknown",
     )
@@ -154,8 +168,15 @@ def model_playlist_metadata(
     model_name: str,
     top_tracks: list[dict[str, Any]],
     temperature: float,
+    *,
+    source_week: str,
+    target_week: str,
 ) -> dict[str, str]:
-    system_prompt, user_prompt = build_model_prompts(top_tracks)
+    system_prompt, user_prompt = build_model_prompts(
+        top_tracks,
+        source_week=source_week,
+        target_week=target_week,
+    )
 
     response = http_json(
         "POST",
@@ -209,6 +230,70 @@ def spotify_get_top_artists(token: str, limit: int = 10) -> list[dict[str, Any]]
         headers={"Authorization": f"Bearer {token}"},
     )
     return payload.get("items", [])
+
+
+def iso_week_label(day: dt.date) -> str:
+    week = day.isocalendar()
+    return f"{week.year}-W{week.week:02d}"
+
+
+def spotify_find_playlist_by_name(token: str, name: str) -> dict[str, Any] | None:
+    params = urllib.parse.urlencode({"limit": "50"})
+    next_url: str | None = f"{SPOTIFY_API_BASE}/me/playlists?{params}"
+
+    while next_url:
+        payload = http_json(
+            "GET",
+            next_url,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        for playlist in payload.get("items", []):
+            if playlist.get("name") == name:
+                return playlist
+        next_url = payload.get("next")
+
+    return None
+
+
+def spotify_get_playlist_tracks(token: str, playlist_id: str, limit: int = 100) -> list[dict[str, Any]]:
+    params = urllib.parse.urlencode({"limit": "100"})
+    next_url: str | None = f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/items?{params}"
+    tracks: list[dict[str, Any]] = []
+
+    while next_url and len(tracks) < limit:
+        payload = http_json(
+            "GET",
+            next_url,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        for item in payload.get("items", []):
+            track = item.get("track") or {}
+            if track.get("uri"):
+                tracks.append(track)
+            if len(tracks) >= limit:
+                break
+
+        next_url = payload.get("next")
+
+    return tracks
+
+
+def artists_from_tracks(tracks: list[dict[str, Any]], limit: int = 10) -> list[dict[str, Any]]:
+    counts: dict[str, int] = {}
+    artist_payload: dict[str, dict[str, Any]] = {}
+
+    for track in tracks:
+        for artist in track.get("artists", []):
+            name = artist.get("name")
+            if not name:
+                continue
+            counts[name] = counts.get(name, 0) + 1
+            if name not in artist_payload:
+                artist_payload[name] = {"name": name, "genres": []}
+
+    ordered = sorted(counts.items(), key=lambda item: (-item[1], item[0]))
+    return [artist_payload[name] for name, _ in ordered[:limit]]
 
 
 def spotify_search_tracks(
@@ -356,47 +441,102 @@ def main() -> None:
     user_id: str = me["id"]
     user_country = str(me.get("country", "")).strip().upper() or None
     search_market = user_country
+
+    today = dt.date.today()
+    target_week = iso_week_label(today)
+    source_week = iso_week_label(today - dt.timedelta(days=7))
+
     print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
     print(f"User market: {user_country or 'N/A'}", flush=True)
     print(f"Search market: {search_market or 'none'}", flush=True)
+    print(f"Target week: {target_week}", flush=True)
+    print(f"Source week: {source_week}", flush=True)
+
+    existing_target = spotify_find_playlist_by_name(token, target_week)
+    if existing_target:
+        print(
+            f"Playlist {target_week} already exists ({existing_target.get('id')}). Skipping.",
+            flush=True,
+        )
+        return
 
     print("Fetching top tracks and artists…", flush=True)
-    top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
-    top_artists = spotify_get_top_artists(token, limit=10)
-    if len(top_tracks) < 5:
+    current_top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
+    current_top_artists = spotify_get_top_artists(token, limit=10)
+    if len(current_top_tracks) < 5:
         print(
-            f"Not enough listening history — got {len(top_tracks)} tracks, need at least 5.",
+            f"Not enough listening history — got {len(current_top_tracks)} tracks, need at least 5.",
             file=sys.stderr,
         )
         sys.exit(1)
 
+    source_tracks = current_top_tracks
+    source_artists = current_top_artists
+    source_label = "current short-term listening"
+    source_playlist_id: str | None = None
+
+    previous_playlist = spotify_find_playlist_by_name(token, source_week)
+    if previous_playlist:
+        previous_tracks = spotify_get_playlist_tracks(
+            token,
+            previous_playlist["id"],
+            limit=max(100, recommendation_limit),
+        )
+        if len(previous_tracks) >= 5:
+            source_tracks = previous_tracks
+            source_artists = artists_from_tracks(previous_tracks, limit=10)
+            source_label = f"playlist {source_week}"
+            source_playlist_id = str(previous_playlist.get("id") or "") or None
+            print(
+                f"Using {len(previous_tracks)} tracks from {source_label} as source data"
+                f" (id: {source_playlist_id or 'unknown'}).",
+                flush=True,
+            )
+        else:
+            print(
+                f"Found {source_label} but it has fewer than 5 tracks; using short-term listening fallback.",
+                flush=True,
+            )
+    else:
+        print(
+            f"No playlist named {source_week} found; using short-term listening fallback.",
+            flush=True,
+        )
+
+    print(
+        f"Grounding source: {source_label}"
+        f"{f' (id: {source_playlist_id})' if source_playlist_id else ''}.",
+        flush=True,
+    )
+
     print("Fetching discovery tracks via genre search…", flush=True)
     rec_uris = spotify_get_discovery_tracks(
         token,
-        top_tracks,
-        top_artists,
+        source_tracks,
+        source_artists,
         market=search_market,
         limit=recommendation_limit,
     )
     if not rec_uris:
         print(
-            "No discovery tracks found; using top tracks as fallback.",
+            f"No discovery tracks found from {source_label}; using source tracks as fallback.",
             file=sys.stderr,
             flush=True,
         )
-        rec_uris = [track["uri"] for track in top_tracks if track.get("uri")]
+        rec_uris = [track["uri"] for track in source_tracks if track.get("uri")]
         rec_uris = list(dict.fromkeys(rec_uris))
 
     print("Generating playlist metadata with AI…", flush=True)
     playlist_meta = model_playlist_metadata(
         github_token,
         model_name,
-        top_tracks,
+        source_tracks,
         model_temperature,
+        source_week=source_week,
+        target_week=target_week,
     )
 
-    week = dt.date.today().isocalendar()
-    playlist_name = f"{week.year}-W{week.week:02d}"
+    playlist_name = target_week
     playlist_description = playlist_meta["description"]
 
     print("Creating playlist…", flush=True)
@@ -417,11 +557,11 @@ def main() -> None:
     added_count = spotify_add_tracks(token, playlist_id, rec_uris)
     if added_count == 0:
         print(
-            "No discovery tracks could be added; falling back to top tracks.",
+            "No source/discovery tracks could be added; falling back to current top tracks.",
             file=sys.stderr,
             flush=True,
         )
-        top_track_uris = [track["uri"] for track in top_tracks if track.get("uri")]
+        top_track_uris = [track["uri"] for track in current_top_tracks if track.get("uri")]
         top_track_uris = list(dict.fromkeys(top_track_uris))
         added_count = spotify_add_tracks(token, playlist_id, top_track_uris)
         rec_uris = top_track_uris
