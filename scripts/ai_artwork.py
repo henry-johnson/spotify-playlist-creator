@@ -93,6 +93,36 @@ def _extract_base64_image(response: dict[str, Any]) -> str | None:
     return None
 
 
+def _artwork_model_available(gh_token: str, model_name: str) -> bool:
+    """Check whether the configured artwork model is visible in the catalog."""
+    try:
+        payload = http_json(
+            "GET",
+            f"{GITHUB_MODELS_BASE}/catalog/models",
+            headers={
+                "Authorization": f"Bearer {gh_token}",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
+        )
+    except Exception as exc:
+        print(
+            f"  Could not verify model catalog ({exc}); trying {model_name} anyway.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return True
+
+    if not isinstance(payload, list):
+        return True
+
+    model_ids = {
+        str(item.get("id") or "").strip()
+        for item in payload
+        if isinstance(item, dict)
+    }
+    return model_name in model_ids
+
+
 def generate_playlist_artwork_base64(
     gh_token: str,
     model_name: str,
@@ -112,6 +142,15 @@ def generate_playlist_artwork_base64(
         source_week=source_week,
         target_week=target_week,
     )
+
+    if not _artwork_model_available(gh_token, model_name):
+        print(
+            f"  Artwork model '{model_name}' is not available for this token; "
+            "skipping artwork.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return None
 
     print(f"  Artwork AI: calling {model_name}…", flush=True)
 

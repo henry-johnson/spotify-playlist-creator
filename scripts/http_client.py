@@ -10,7 +10,7 @@ import urllib.parse
 import urllib.request
 from typing import Any
 
-from config import MAX_RETRIES, RETRY_BACKOFF
+from config import MAX_RETRIES, MAX_RETRY_WAIT_SECONDS, RETRY_BACKOFF
 
 
 def http_json(
@@ -60,6 +60,14 @@ def http_json(
                         retry_after_seconds = 0.0
                     if retry_after_seconds > 0:
                         wait = retry_after_seconds
+
+                if wait > MAX_RETRY_WAIT_SECONDS:
+                    print(
+                        "Retry wait capped from "
+                        f"{wait:.1f}s to {MAX_RETRY_WAIT_SECONDS:.1f}s.",
+                        file=sys.stderr,
+                    )
+                    wait = MAX_RETRY_WAIT_SECONDS
 
                 print(
                     f"HTTP {err.code} on attempt {attempt + 1}/{retries}. "

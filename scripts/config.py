@@ -26,6 +26,7 @@ DEFAULT_ARTWORK_PROMPT_FILE = "prompts/playlist_artwork_prompt.md"
 # ── Retry config ────────────────────────────────────────────────────
 MAX_RETRIES = 5
 RETRY_BACKOFF = 2.0  # seconds
+MAX_RETRY_WAIT_SECONDS = 30.0
 
 
 def require_env(name: str) -> str:
