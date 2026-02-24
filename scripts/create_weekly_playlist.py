@@ -87,11 +87,15 @@ REQUIRED_SCOPES = {
     "user-top-read",
     "playlist-modify-private",
     "playlist-modify-public",
-    "playlist-read-private",
 }
+OPTIONAL_SCOPES = {"playlist-read-private"}
 
 
-def spotify_access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
+def spotify_access_token(
+    client_id: str,
+    client_secret: str,
+    refresh_token: str,
+) -> tuple[str, set[str]]:
     basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     response = http_json(
         "POST",
@@ -115,7 +119,17 @@ def spotify_access_token(client_id: str, client_secret: str, refresh_token: str)
         )
         sys.exit(1)
 
-    return response["access_token"]
+    missing_optional = OPTIONAL_SCOPES - granted
+    if missing_optional:
+        print(
+            "Optional scope(s) missing: "
+            f"{', '.join(sorted(missing_optional))}. "
+            "Weekly dedupe and previous-playlist grounding will be disabled.",
+            file=sys.stderr,
+            flush=True,
+        )
+
+    return response["access_token"], granted
 
 
 def build_model_prompts(
@@ -436,7 +450,11 @@ def main() -> None:
     recommendation_limit = int(os.getenv("SPOTIFY_RECOMMENDATIONS_LIMIT", "30"))
 
     print("Authenticating with Spotify…", flush=True)
-    token = spotify_access_token(spotify_client_id, spotify_client_secret, spotify_refresh_token)
+    token, granted_scopes = spotify_access_token(
+        spotify_client_id,
+        spotify_client_secret,
+        spotify_refresh_token,
+    )
     me = spotify_get_me(token)
     user_id: str = me["id"]
     user_country = str(me.get("country", "")).strip().upper() or None
@@ -452,13 +470,34 @@ def main() -> None:
     print(f"Target week: {target_week}", flush=True)
     print(f"Source week: {source_week}", flush=True)
 
-    existing_target = spotify_find_playlist_by_name(token, target_week)
-    if existing_target:
+    can_read_private_playlists = "playlist-read-private" in granted_scopes
+
+    if can_read_private_playlists:
+        try:
+            existing_target = spotify_find_playlist_by_name(token, target_week)
+        except urllib.error.HTTPError as err:
+            if err.code == 403:
+                print(
+                    "Could not read existing playlists (403). Continuing without dedupe.",
+                    file=sys.stderr,
+                    flush=True,
+                )
+                existing_target = None
+                can_read_private_playlists = False
+            else:
+                raise
+        if existing_target:
+            print(
+                f"Playlist {target_week} already exists ({existing_target.get('id')}). Skipping.",
+                flush=True,
+            )
+            return
+    else:
         print(
-            f"Playlist {target_week} already exists ({existing_target.get('id')}). Skipping.",
+            "Skipping existing-playlist check (missing playlist-read-private scope).",
+            file=sys.stderr,
             flush=True,
         )
-        return
 
     print("Fetching top tracks and artists…", flush=True)
     current_top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
@@ -475,31 +514,37 @@ def main() -> None:
     source_label = "current short-term listening"
     source_playlist_id: str | None = None
 
-    previous_playlist = spotify_find_playlist_by_name(token, source_week)
-    if previous_playlist:
-        previous_tracks = spotify_get_playlist_tracks(
-            token,
-            previous_playlist["id"],
-            limit=max(100, recommendation_limit),
-        )
-        if len(previous_tracks) >= 5:
-            source_tracks = previous_tracks
-            source_artists = artists_from_tracks(previous_tracks, limit=10)
-            source_label = f"playlist {source_week}"
-            source_playlist_id = str(previous_playlist.get("id") or "") or None
-            print(
-                f"Using {len(previous_tracks)} tracks from {source_label} as source data"
-                f" (id: {source_playlist_id or 'unknown'}).",
-                flush=True,
+    if can_read_private_playlists:
+        previous_playlist = spotify_find_playlist_by_name(token, source_week)
+        if previous_playlist:
+            previous_tracks = spotify_get_playlist_tracks(
+                token,
+                previous_playlist["id"],
+                limit=max(100, recommendation_limit),
             )
+            if len(previous_tracks) >= 5:
+                source_tracks = previous_tracks
+                source_artists = artists_from_tracks(previous_tracks, limit=10)
+                source_label = f"playlist {source_week}"
+                source_playlist_id = str(previous_playlist.get("id") or "") or None
+                print(
+                    f"Using {len(previous_tracks)} tracks from {source_label} as source data"
+                    f" (id: {source_playlist_id or 'unknown'}).",
+                    flush=True,
+                )
+            else:
+                print(
+                    f"Found {source_label} but it has fewer than 5 tracks; using short-term listening fallback.",
+                    flush=True,
+                )
         else:
             print(
-                f"Found {source_label} but it has fewer than 5 tracks; using short-term listening fallback.",
+                f"No playlist named {source_week} found; using short-term listening fallback.",
                 flush=True,
             )
     else:
         print(
-            f"No playlist named {source_week} found; using short-term listening fallback.",
+            "No previous-playlist lookup available; using short-term listening fallback.",
             flush=True,
         )
 

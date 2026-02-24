@@ -29,12 +29,14 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 
 ## 2) Generate a Spotify refresh token (one-time)
 
-You need scopes: `user-top-read playlist-read-private playlist-modify-private playlist-modify-public`.
+Required scopes: `user-top-read playlist-modify-private playlist-modify-public`.
+
+Optional scope (recommended): `playlist-read-private`.
 
 Example authorization URL:
 
 ```text
-https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8888%2Fcallback&scope=user-top-read%20playlist-read-private%20playlist-modify-private%20playlist-modify-public
+https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8888%2Fcallback&scope=user-top-read%20playlist-modify-private%20playlist-modify-public%20playlist-read-private
 ```
 
 After approving, Spotify redirects with a `code=...` query param. Exchange it:
@@ -84,8 +86,8 @@ Prompt customization:
 
 ## Notes
 
-- The script creates **one private playlist per ISO week** (for example `2026-W08`); reruns skip creation if that week already exists.
-- Week `W08` is grounded on playlist data from `W07` when available.
+- The script creates **one private playlist per ISO week** (for example `2026-W08`) when `playlist-read-private` is granted; without it, duplicate-week detection is skipped.
+- Week `W08` is grounded on playlist data from `W07` when available and readable.
 - On first run (or if `W07` is missing), it falls back to your current `short_term` listening data.
 - If your account has too little listening history, Spotify may return fewer recommendations.
 - Set your preferred genres directly in the prompt file/template (for example in `prompts/playlist_user_prompt.md`) so the model pulls genre guidance from prompt content.
