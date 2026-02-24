@@ -83,7 +83,7 @@ def http_json(
     raise RuntimeError(f"All {retries} retries exhausted for {method} {url}")
 
 
-REQUIRED_SCOPES = {"user-top-read", "playlist-modify-private"}
+REQUIRED_SCOPES = {"user-top-read", "playlist-modify-private", "playlist-modify-public"}
 
 
 def spotify_access_token(client_id: str, client_secret: str, refresh_token: str) -> str:
@@ -304,8 +304,7 @@ def main() -> None:
     print("Authenticating with Spotify…", flush=True)
     token = spotify_access_token(spotify_client_id, spotify_client_secret, spotify_refresh_token)
     me = spotify_get_me(token)
-    user_id: str = me["id"]
-
+    user_id: str = me["id"]    print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
     print("Fetching top tracks and artists…", flush=True)
     top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
     top_artists = spotify_get_top_artists(token, limit=10)
@@ -341,10 +340,11 @@ def main() -> None:
         if err.code == 403:
             print(
                 "\nPlaylist creation returned 403 Forbidden.\n"
-                "This usually means the refresh token is missing the "
-                "'playlist-modify-private' scope.\n"
-                "Re-run the OAuth flow with the correct scopes and update "
-                "the SPOTIFY_REFRESH_TOKEN secret.",
+                "Possible causes:\n"
+                "  1. Add your Spotify account email to the app's User Management\n"
+                "     at https://developer.spotify.com/dashboard (Settings → User Management)\n"
+                "  2. Re-authorise with all required scopes and update the\n"
+                "     SPOTIFY_REFRESH_TOKEN secret.",
                 file=sys.stderr,
             )
         raise
