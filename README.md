@@ -15,11 +15,9 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 3. If `playlist-read-private` is granted, check whether that week's playlist already exists — if it does, **overwrite it** (clear tracks and update metadata) rather than creating a new one.
 4. If `playlist-read-private` is granted, load source data from the previous week playlist (for example `2026-W07`).
 5. Fall back to your `short_term` top tracks/artists when previous week playlist data is unavailable.
-6. Build a discovery track mix using:
-   - **Spotify Recommendations API** (`GET /v1/recommendations`) seeded from your top tracks and artists — target 10 tracks
-   - **Related artists' top tracks** (`GET /v1/artists/{id}/related-artists` + `GET /v1/artists/{id}/top-tracks`) — target 8 tracks
-   - **Familiar anchors** — shuffled source week tracks — target 5 tracks
-   - **Genre/artist search** (`GET /v1/search`) to fill any remaining slots — target 5 tracks
+6. Build a discovery track mix:
+   - **Familiar anchors** — shuffled source week tracks (up to 10)
+   - **Genre/artist search** (`GET /v1/search`) to fill remaining slots to ~28 tracks total
 7. Ask GitHub Models for a grounded playlist description.
 8. Create (or overwrite) the target week private playlist and add the discovery mix.
 
@@ -36,7 +34,7 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 
 Required scopes: `user-top-read playlist-modify-private playlist-modify-public`.
 
-Optional scope (recommended): `playlist-read-private`.
+**Strongly recommended scope: `playlist-read-private`.** Without it, the script cannot detect an existing week playlist and will create a duplicate every run instead of overwriting.
 
 Example authorization URL:
 
@@ -91,8 +89,8 @@ Prompt customization:
 
 ## Notes
 
-- The script creates **one private playlist per ISO week** (for example `2026-W08`) when `playlist-read-private` is granted. If that playlist already exists, the script **overwrites it** — it clears all existing tracks, updates the description with freshly generated AI copy, then repopulates with a new discovery mix. Without `playlist-read-private`, overwrite detection is skipped and a new playlist is created each run.
-- The discovery mix targets ~28 tracks per week: 10 from the Spotify Recommendations API (seeded from your top tracks + artists), 8 from related artists' top tracks, 5 familiar anchors from the source week, and ~5 from genre/artist search to fill remaining slots.
+- The script creates **one private playlist per ISO week** (for example `2026-W08`) when `playlist-read-private` is granted. If that playlist already exists, the script **overwrites it** — it clears all existing tracks, updates the description with freshly generated AI copy, then repopulates with a new discovery mix. Without `playlist-read-private`, overwrite detection is skipped and a new playlist is created each run, resulting in duplicates.
+- The discovery mix targets ~28 tracks per week: up to 10 familiar anchors from the source week, then genre and artist name searches to fill remaining slots.
 - Week `W08` is grounded on playlist data from `W07` when available and readable. On first run (or if `W07` is missing), it falls back to your current `short_term` listening data.
 - Playlist descriptions are automatically normalized and truncated to Spotify's limit before creation.
 - If your account has too little listening history (fewer than 5 top tracks), the script exits early.

@@ -341,117 +341,6 @@ def spotify_search_tracks(
         return []
 
 
-def spotify_get_recommendations(
-    token: str,
-    seed_track_ids: list[str],
-    seed_artist_ids: list[str],
-    market: str | None = None,
-    limit: int = 50,
-) -> list[str]:
-    """Call GET /v1/recommendations and return a list of track URIs."""
-    total_seeds = len(seed_track_ids) + len(seed_artist_ids)
-    if total_seeds == 0:
-        print("  Recommendations: no seeds available, skipping.", file=sys.stderr, flush=True)
-        return []
-    if total_seeds > 5:
-        # Trim to stay within Spotify's 5-seed limit
-        seed_artist_ids = seed_artist_ids[: max(0, 5 - len(seed_track_ids))]
-
-    query_params: dict[str, str] = {"limit": str(min(limit, 100))}
-    if seed_track_ids:
-        query_params["seed_tracks"] = ",".join(seed_track_ids)
-    if seed_artist_ids:
-        query_params["seed_artists"] = ",".join(seed_artist_ids)
-    if market:
-        query_params["market"] = market
-
-    try:
-        payload = http_json(
-            "GET",
-            f"{SPOTIFY_API_BASE}/recommendations?{urllib.parse.urlencode(query_params)}",
-            headers={"Authorization": f"Bearer {token}"},
-        )
-        uris = [t["uri"] for t in payload.get("tracks", []) if t.get("uri")]
-        print(f"  Recommendations: {len(uris)} tracks returned.", flush=True)
-        return uris
-    except urllib.error.HTTPError as exc:
-        if exc.code == 404:
-            print(
-                "  Recommendations: endpoint returned 404 — this API requires Spotify Extended Quota Mode."
-                " Skipping.",
-                file=sys.stderr,
-                flush=True,
-            )
-        else:
-            print(f"  Recommendations call failed ({exc.code}): {exc}", file=sys.stderr, flush=True)
-        return []
-    except Exception as exc:
-        print(f"  Recommendations call failed: {exc}", file=sys.stderr, flush=True)
-        return []
-
-
-def spotify_get_related_artists_top_tracks(
-    token: str,
-    artist_ids: list[str],
-    market: str | None = None,
-    limit: int = 12,
-) -> list[str]:
-    """For each artist ID, fetch related artists then get their top tracks."""
-    uris: list[str] = []
-    seen_artist_ids: set[str] = set(artist_ids)
-
-    for artist_id in artist_ids:
-        if len(uris) >= limit:
-            break
-        try:
-            related_payload = http_json(
-                "GET",
-                f"{SPOTIFY_API_BASE}/artists/{artist_id}/related-artists",
-                headers={"Authorization": f"Bearer {token}"},
-            )
-        except urllib.error.HTTPError as exc:
-            if exc.code == 403:
-                print(
-                    f"  related-artists({artist_id}): 403 — requires Spotify Extended Quota Mode. Skipping all.",
-                    file=sys.stderr,
-                    flush=True,
-                )
-                break  # All artists will fail with the same 403; no point continuing
-            print(f"  related-artists({artist_id}) failed ({exc.code}): {exc}", file=sys.stderr, flush=True)
-            continue
-        except Exception as exc:
-            print(f"  related-artists({artist_id}) failed: {exc}", file=sys.stderr, flush=True)
-            continue
-
-        related = [
-            a for a in related_payload.get("artists", [])
-            if a.get("id") and a["id"] not in seen_artist_ids
-        ][:3]
-
-        for related_artist in related:
-            if len(uris) >= limit:
-                break
-            rid = related_artist["id"]
-            seen_artist_ids.add(rid)
-            top_params = urllib.parse.urlencode({"market": market} if market else {})
-            top_url = f"{SPOTIFY_API_BASE}/artists/{rid}/top-tracks" + (f"?{top_params}" if top_params else "")
-            try:
-                top_payload = http_json(
-                    "GET",
-                    top_url,
-                    headers={"Authorization": f"Bearer {token}"},
-                )
-                for track in top_payload.get("tracks", [])[:5]:
-                    uri = track.get("uri")
-                    if uri and uri not in uris:
-                        uris.append(uri)
-            except Exception as exc:
-                print(f"  top-tracks({rid}) failed: {exc}", file=sys.stderr, flush=True)
-
-    print(f"  Related artists: {len(uris)} tracks found.", flush=True)
-    return uris[:limit]
-
-
 def spotify_get_discovery_tracks(
     token: str,
     source_tracks: list[dict[str, Any]],
@@ -459,7 +348,7 @@ def spotify_get_discovery_tracks(
     current_top_artists: list[dict[str, Any]],
     market: str | None = None,
 ) -> list[str]:
-    """Build a discovery track mix: recommendations, related artists, anchors, genre search."""
+    """Build a discovery track mix: familiar anchors + genre/artist search."""
     known_uris: set[str] = {t["uri"] for t in source_tracks if t.get("uri")}
     discovered: list[str] = []
     discovered_set: set[str] = set()
@@ -471,50 +360,18 @@ def spotify_get_discovery_tracks(
             return True
         return False
 
-    # --- Slot 1: Spotify Recommendations API — target 10 tracks ---
-    seed_track_ids = [
-        t["uri"].split(":")[-1]
-        for t in source_tracks[:3]
-        if t.get("uri", "").startswith("spotify:track:")
-    ]
-    seed_artist_ids = [a["id"] for a in current_top_artists if a.get("id")]
-    n_tracks = min(3, len(seed_track_ids))
-    n_artists = min(5 - n_tracks, len(seed_artist_ids))
-    print(
-        f"Recommendations seeds: {n_tracks} track(s), {n_artists} artist(s)",
-        flush=True,
-    )
-    for uri in spotify_get_recommendations(
-        token,
-        seed_track_ids[:n_tracks],
-        seed_artist_ids[:n_artists],
-        market=market,
-        limit=15,
-    ):
-        add(uri, 10)
-    recs_count = len(discovered)
-
-    # --- Slot 2: Related artists' top tracks — target 8 tracks ---
-    top_artist_ids = [a["id"] for a in current_top_artists if a.get("id")][:5]
-    if top_artist_ids:
-        for uri in spotify_get_related_artists_top_tracks(
-            token, top_artist_ids, market=market, limit=12
-        ):
-            add(uri, 18)
-    related_count = len(discovered) - recs_count
-
-    # --- Slot 3: Familiar anchors — shuffled source tracks, target 5 ---
+    # --- Slot 1: Familiar anchors — shuffled source tracks, up to 10 ---
     anchor_uris = [t["uri"] for t in source_tracks if t.get("uri")]
     random.shuffle(anchor_uris)
     for uri in anchor_uris:
-        if uri not in discovered_set and len(discovered) < 23:
+        if uri not in discovered_set and len(discovered) < 10:
             discovered.append(uri)
             discovered_set.add(uri)
-    anchor_count = len(discovered) - recs_count - related_count
+    anchor_count = len(discovered)
 
-    # --- Slot 4: Genre/artist search — fill to 28 ---
-    # Use current_top_artists for genres (full artist objects with genre data from /me/top/artists)
-    # Use source_artists for artist names (prominent artists in the source week's listening)
+    # --- Slot 2: Genre/artist search — fill to 28 ---
+    # Genres come from current_top_artists (full objects from /me/top/artists with genre data).
+    # Artist names come from both source and current top artists.
     genres = list(dict.fromkeys(
         g for a in current_top_artists for g in a.get("genres", [])
     ))
@@ -523,6 +380,7 @@ def spotify_get_discovery_tracks(
         + [a["name"] for a in current_top_artists if a.get("name")]
     ))
     print(f"Genre search pool: {genres[:8]}", flush=True)
+    print(f"Artist name search pool: {artist_names[:8]}", flush=True)
     queries = (
         [f'genre:"{g}"' for g in genres[:8]]
         + [f'artist:"{n}"' for n in artist_names[:8]]
@@ -532,11 +390,10 @@ def spotify_get_discovery_tracks(
             break
         for uri in spotify_search_tracks(token, query, limit=10, market=market):
             add(uri, 28)
-    search_count = len(discovered) - recs_count - related_count - anchor_count
+    search_count = len(discovered) - anchor_count
 
     print(
-        f"Discovery mix: {len(discovered)} tracks "
-        f"(recs={recs_count}, related={related_count}, anchors={anchor_count}, search={search_count})",
+        f"Discovery mix: {len(discovered)} tracks (anchors={anchor_count}, search={search_count})",
         flush=True,
     )
     return discovered
