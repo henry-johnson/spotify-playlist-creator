@@ -304,7 +304,9 @@ def main() -> None:
     print("Authenticating with Spotify…", flush=True)
     token = spotify_access_token(spotify_client_id, spotify_client_secret, spotify_refresh_token)
     me = spotify_get_me(token)
-    user_id: str = me["id"]    print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
+    user_id: str = me["id"]
+    print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
+
     print("Fetching top tracks and artists…", flush=True)
     top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
     top_artists = spotify_get_top_artists(token, limit=10)
