@@ -288,6 +288,14 @@ def spotify_create_playlist(token: str, name: str, description: str) -> str:
 
 
 def spotify_add_tracks(token: str, playlist_id: str, uris: list[str]) -> int:
+    def add_batch_with_query(batch_uris: list[str]) -> None:
+        params = urllib.parse.urlencode({"uris": ",".join(batch_uris)})
+        http_json(
+            "POST",
+            f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/items?{params}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
     # Spotify allows a maximum of 100 tracks per request
     added_count = 0
     for i in range(0, len(uris), 100):
@@ -295,14 +303,23 @@ def spotify_add_tracks(token: str, playlist_id: str, uris: list[str]) -> int:
         try:
             http_json(
                 "POST",
-                f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/tracks",
+                f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/items",
                 headers={"Authorization": f"Bearer {token}"},
                 body={"uris": batch},
             )
             added_count += len(batch)
+            continue
         except urllib.error.HTTPError as err:
             if err.code != 403:
                 raise
+
+            try:
+                add_batch_with_query(batch)
+                added_count += len(batch)
+                continue
+            except urllib.error.HTTPError as query_err:
+                if query_err.code != 403:
+                    raise
 
             print(
                 f"Batch add returned 403. Retrying one-by-one for {len(batch)} tracks…",
@@ -311,12 +328,7 @@ def spotify_add_tracks(token: str, playlist_id: str, uris: list[str]) -> int:
             )
             for uri in batch:
                 try:
-                    http_json(
-                        "POST",
-                        f"{SPOTIFY_API_BASE}/playlists/{playlist_id}/tracks",
-                        headers={"Authorization": f"Bearer {token}"},
-                        body={"uris": [uri]},
-                    )
+                    add_batch_with_query([uri])
                     added_count += 1
                 except urllib.error.HTTPError as single_err:
                     if single_err.code == 403:
@@ -343,8 +355,10 @@ def main() -> None:
     me = spotify_get_me(token)
     user_id: str = me["id"]
     user_country = str(me.get("country", "")).strip().upper() or None
+    search_market = user_country or "from_token"
     print(f"Authenticated as user: {user_id} ({me.get('display_name', 'N/A')})", flush=True)
     print(f"User market: {user_country or 'N/A'}", flush=True)
+    print(f"Search market: {search_market}", flush=True)
 
     print("Fetching top tracks and artists…", flush=True)
     top_tracks = spotify_get_top_tracks(token, limit=top_tracks_limit)
@@ -361,7 +375,7 @@ def main() -> None:
         token,
         top_tracks,
         top_artists,
-        market=user_country,
+        market=search_market,
         limit=recommendation_limit,
     )
     if not rec_uris:
@@ -396,6 +410,17 @@ def main() -> None:
             )
         raise
     added_count = spotify_add_tracks(token, playlist_id, rec_uris)
+    if added_count == 0:
+        print(
+            "No discovery tracks could be added; falling back to top tracks.",
+            file=sys.stderr,
+            flush=True,
+        )
+        top_track_uris = [track["uri"] for track in top_tracks if track.get("uri")]
+        top_track_uris = list(dict.fromkeys(top_track_uris))
+        added_count = spotify_add_tracks(token, playlist_id, top_track_uris)
+        rec_uris = top_track_uris
+
     if added_count == 0:
         print("No tracks could be added to the playlist.", file=sys.stderr, flush=True)
         sys.exit(1)
