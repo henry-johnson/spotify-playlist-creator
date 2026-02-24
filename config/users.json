@@ -1,0 +1,11 @@
+{
+  "_comment": "Template for local testing. In GitHub Actions, use SPOTIFY_USER_* secrets instead.",
+  "users": [
+    {
+      "username": "henry",
+      "spotify_client_id": "your_client_id",
+      "spotify_client_secret": "your_client_secret",
+      "spotify_refresh_token": "your_refresh_token"
+    }
+  ]
+}

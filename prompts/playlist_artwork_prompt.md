@@ -1,26 +1,12 @@
-Abstract, soft-focus gradient composition inspired strongly by the four seasons, expressed through atmosphere, colour, and diffused light. Large, blurred colour fields blend seamlessly into one another with no sharp edges or defined geometry.
+Create a single square image (1:1 aspect ratio). Generate one image only. Abstract, soft-focus gradient composition inspired by the current season. Large, blurred colour fields blend seamlessly into one another with no sharp edges or defined geometry. Select a colour palette, lighting atmosphere, and emotional tone appropriate to the current season (spring, summer, autumn, or winter). The seasonal influence should guide the hues and warmth of the image:
 
-Spring: fresh dewy greens, soft blossom pinks, pale lilac, and gentle morning light glow.
-Summer: radiant sky blues, warm golden sunlight, and airy sun-washed warmth.
-Autumn: rich amber, muted burnt orange, warm peach, and subtle harvest depth.
-Winter: cool icy blues, frosted whites, silvery undertones, and calm crystalline light.
+Spring: fresh, light, gently vibrant
+Summer: bright, sun-washed, radiant
+Autumn: warm, rich, softly deep
+Winter: cool, crisp, airy and pale
 
-All seasonal tones should melt organically into one another with ultra-smooth, creamy transitions — no hard separations.
+Do not create multiple seasonal versions. Interpret only the current season and render one cohesive composition. In the foreground, include one softly abstract seasonal subject rendered in the same blurred, luminous style. The subject should be recognizable only through a very gentle silhouette suggestion, deeply out of focus, as if seen through frosted glass or shallow depth of field. No sharp detail, no realism — just subtle atmospheric form emerging through colour density and light. The seasonal subject should feel appropriate to the current season without being literal or highly detailed.
 
-In the foreground, include a softly abstract seasonal character rendered in the same blurred, luminous style — recognizable in silhouette but deeply out of focus, as if seen through frosted glass or shallow depth of field:
+The entire image should feel airy, modern, and premium — like a tech or healthcare brand backdrop — balancing emotional warmth with refined minimalism. High-key, luminous aesthetic. Ultra-smooth creamy transitions. No texture, no grain, no noise, no crisp edges, no visible brush strokes.
 
-Spring: softly glowing, out-of-focus baby lamb shapes suggested through pale cream and warm blush tones against fresh green haze.
-
-Summer: blurred suggestion of a child running through sunlight or tall grass, rendered as warm golden and sky-blue motion haze.
-
-Autumn: soft silhouette of falling leaves swirling, or a bundled figure walking, expressed through amber and burnt orange diffusion.
-
-Winter: faint, frosted outline of a snow-covered tree or bundled figure in pale icy blue-white glow.
-
-The foreground subject must remain atmospheric — no sharp detail, no realism, just a gentle presence formed through colour density and soft gradients.
-
-The entire image should feel airy, modern, and premium — like a tech or healthcare brand backdrop — balancing emotional warmth with refined minimalism.
-
-High-key, luminous aesthetic. No texture, no grain, no noise, no crisp edges, no visible brush strokes. No text. Smooth gradient transitions throughout.
-
-Square format (1:1 aspect ratio), high resolution.
+No text. No letters. No words. No typography. No borders. No panels. Single image only. High resolution.

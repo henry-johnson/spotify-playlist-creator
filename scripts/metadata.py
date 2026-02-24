@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
 import sys
@@ -12,6 +13,7 @@ from config import (
     DEFAULT_USER_PROMPT_FILE,
     OPENAI_TEXT_MODEL_SMALL,
     OPENAI_TEMPERATURE_SMALL,
+    SPOTIFY_PLAYLIST_DESCRIPTION_MAX,
     read_file_if_exists,
 )
 
@@ -124,6 +126,29 @@ def generate_playlist_description(
         )[:5]
     )
     return (
-        f"Weekly playlist for {target_week}, based on {source_week} listening"
+        f"Weekly playlist based on {source_week} listening"
         f"{': ' + fallback_artists if fallback_artists else ''}."
     )
+
+
+def assemble_final_description(description_body: str) -> str:
+    """Assemble the final Spotify playlist description and truncate to 300 chars.
+
+    Format: "{description_body}. Playlist created at {timestamp}."
+    Single source of truth used by both the production orchestrator and tests.
+    """
+    created_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
+    credits_suffix = f" This playlist was created by an AI experiment from Johnsons Technologies on {created_at}."
+    body = " ".join(description_body.split()).strip().rstrip(".")
+
+    full = f"{body}.{credits_suffix}"
+    if len(full) <= SPOTIFY_PLAYLIST_DESCRIPTION_MAX:
+        return full
+
+    # Truncate body to fit everything within the limit
+    available = SPOTIFY_PLAYLIST_DESCRIPTION_MAX - len(credits_suffix) - 1  # 1 for "."
+    if available > 1:
+        body = f"{body[:available - 1].rstrip()}…"
+    else:
+        body = body[:max(available, 0)]
+    return f"{body}.{credits_suffix}"

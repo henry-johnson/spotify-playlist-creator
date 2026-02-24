@@ -16,7 +16,6 @@ from model_provider_openai import OpenAIProvider
 from config import (
     OPENAI_API_BASE_URL,
     OPENAI_TEXT_MODEL_SMALL,
-    SPOTIFY_PLAYLIST_DESCRIPTION_MAX,
     require_env,
 )
 from multi_user_config import load_users_from_env
@@ -37,7 +36,7 @@ from spotify_api import (
     spotify_upload_playlist_cover_image,
     spotify_update_playlist_details,
 )
-from metadata import generate_playlist_description
+from metadata import generate_playlist_description, assemble_final_description
 from discovery import build_discovery_mix
 
 
@@ -296,26 +295,8 @@ def create_playlist_for_user(
         listener_first_name=profile_first_name,
     )
 
-    # Prepend a human-readable creation timestamp
-    created_at = dt.datetime.now(dt.timezone.utc).isoformat(
-        timespec="seconds",
-    )
-    credits_prefix = (
-        "An AI experiment by Johnsons Technologies. "
-        f"Playlist created at {created_at}. "
-    )
-    description_body = " ".join(playlist_description.split()).strip()
-    available = SPOTIFY_PLAYLIST_DESCRIPTION_MAX - len(credits_prefix)
-
-    if available <= 0:
-        playlist_description = credits_prefix[:SPOTIFY_PLAYLIST_DESCRIPTION_MAX]
-    else:
-        if len(description_body) > available:
-            if available > 1:
-                description_body = f"{description_body[: available - 1].rstrip()}…"
-            else:
-                description_body = description_body[:available]
-        playlist_description = f"{credits_prefix}{description_body}"
+    # Prepend credits/timestamp prefix and truncate to Spotify's limit
+    playlist_description = assemble_final_description(playlist_description)
 
     # ── Create or overwrite playlist ────────────────────────────────
     playlist_name = target_week
