@@ -1,4 +1,4 @@
-# spotify-playlist-creator
+# build-weekly-spotify-playlist
 
 Automate a **weekly Spotify playlist** using:
 
