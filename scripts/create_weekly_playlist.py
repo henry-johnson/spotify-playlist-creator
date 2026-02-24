@@ -6,9 +6,11 @@ Orchestrator script — delegates to modular components in the same directory.
 from __future__ import annotations
 
 import datetime as dt
+import heapq
 import os
 import sys
 import urllib.error
+from collections import deque
 
 from config import (
     DEFAULT_ARTWORK_MODEL,
@@ -27,6 +29,7 @@ from spotify_api import (
     spotify_find_playlist_by_name,
     spotify_get_me,
     spotify_get_playlist_tracks,
+    spotify_track_primary_artist_by_uri,
     spotify_get_top_artists,
     spotify_get_top_tracks,
     spotify_upload_playlist_cover_image,
@@ -34,6 +37,49 @@ from spotify_api import (
 )
 from ai_metadata import generate_playlist_description
 from discovery import build_discovery_mix
+
+
+def _spread_tracks_by_artist(
+    uris: list[str],
+    primary_artist_by_uri: dict[str, str],
+) -> list[str]:
+    """Reorder URIs to reduce adjacent tracks by the same primary artist."""
+    buckets: dict[str, deque[str]] = {}
+    for uri in uris:
+        artist_key = primary_artist_by_uri.get(uri, "") or ""
+        if artist_key not in buckets:
+            buckets[artist_key] = deque()
+        buckets[artist_key].append(uri)
+
+    heap: list[tuple[int, str]] = [
+        (-len(bucket), artist_key)
+        for artist_key, bucket in buckets.items()
+        if bucket
+    ]
+    heapq.heapify(heap)
+
+    ordered: list[str] = []
+    previous_artist = ""
+
+    while heap:
+        count1, artist1 = heapq.heappop(heap)
+        if artist1 == previous_artist and heap:
+            count2, artist2 = heapq.heappop(heap)
+            ordered.append(buckets[artist2].popleft())
+            previous_artist = artist2
+            count2 += 1
+            if count2 < 0:
+                heapq.heappush(heap, (count2, artist2))
+            heapq.heappush(heap, (count1, artist1))
+            continue
+
+        ordered.append(buckets[artist1].popleft())
+        previous_artist = artist1
+        count1 += 1
+        if count1 < 0:
+            heapq.heappush(heap, (count1, artist1))
+
+    return ordered
 
 
 def main() -> None:
@@ -68,6 +114,8 @@ def main() -> None:
     )
     me = spotify_get_me(token)
     user_id: str = me["id"]
+    display_name = str(me.get("display_name") or "").strip()
+    profile_first_name = display_name.split()[0] if display_name else "there"
     user_country = str(me.get("country", "")).strip().upper() or None
     search_market = user_country
 
@@ -243,11 +291,12 @@ def main() -> None:
         model_temperature,
         source_week=source_week,
         target_week=target_week,
+        listener_first_name=profile_first_name,
     )
 
     # Prepend a human-readable creation timestamp
-    created_at = dt.datetime.now(dt.timezone.utc).strftime(
-        "%b %d, %Y at %I:%M:%S %p UTC",
+    created_at = dt.datetime.now(dt.timezone.utc).isoformat(
+        timespec="seconds",
     )
     playlist_description = f"Created: {created_at} \u2014 {playlist_description}"
 
@@ -292,6 +341,11 @@ def main() -> None:
             seen.add(uri)
             unique_uris.append(uri)
     rec_uris = unique_uris[:100]
+
+    primary_artist_by_uri = spotify_track_primary_artist_by_uri(token, rec_uris)
+    if primary_artist_by_uri:
+        rec_uris = _spread_tracks_by_artist(rec_uris, primary_artist_by_uri)
+
     added_count = spotify_add_tracks(token, playlist_id, rec_uris)
     if added_count == 0:
         print(

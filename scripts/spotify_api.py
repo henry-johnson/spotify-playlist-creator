@@ -121,6 +121,57 @@ def spotify_get_playlist_tracks(
     return tracks
 
 
+def spotify_track_primary_artist_by_uri(
+    token: str,
+    uris: list[str],
+) -> dict[str, str]:
+    """Return a map of track URI -> primary artist ID (or name fallback)."""
+    uri_to_track_id: dict[str, str] = {}
+    for uri in uris:
+        if uri in uri_to_track_id:
+            continue
+        parts = uri.split(":")
+        if len(parts) == 3 and parts[0] == "spotify" and parts[1] == "track":
+            uri_to_track_id[uri] = parts[2]
+
+    if not uri_to_track_id:
+        return {}
+
+    track_ids = list(dict.fromkeys(uri_to_track_id.values()))
+    primary_artist_by_track_id: dict[str, str] = {}
+
+    for i in range(0, len(track_ids), 50):
+        batch_ids = track_ids[i : i + 50]
+        params = urllib.parse.urlencode({"ids": ",".join(batch_ids)})
+        payload = http_json(
+            "GET",
+            f"{SPOTIFY_API_BASE}/tracks?{params}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        for track in payload.get("tracks", []):
+            if not track:
+                continue
+            track_id = str(track.get("id") or "").strip()
+            if not track_id:
+                continue
+
+            artists = track.get("artists") or []
+            primary_artist = ""
+            if artists:
+                first_artist = artists[0] or {}
+                primary_artist = str(
+                    first_artist.get("id") or first_artist.get("name") or "",
+                ).strip()
+
+            primary_artist_by_track_id[track_id] = primary_artist
+
+    return {
+        uri: primary_artist_by_track_id.get(track_id, "")
+        for uri, track_id in uri_to_track_id.items()
+    }
+
+
 def _normalize_description(description: str) -> str:
     """Normalize a playlist description. Warns if over Spotify's limit."""
     normalized = " ".join(description.split()).strip()

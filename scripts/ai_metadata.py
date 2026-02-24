@@ -16,6 +16,7 @@ def _build_description_prompts(
     *,
     source_week: str,
     target_week: str,
+    first_name: str,
 ) -> tuple[str, str]:
     """Return (system_prompt, user_prompt) for playlist description generation."""
     system_prompt = (
@@ -29,12 +30,14 @@ def _build_description_prompts(
     prompt_file = os.getenv("PLAYLIST_PROMPT_FILE", DEFAULT_USER_PROMPT_FILE)
     user_template = read_file_if_exists(prompt_file) or (
         "Create metadata for a weekly Spotify playlist based on my recent listening.\n"
+        "Listener first name: {first_name}.\n"
         "Source week: {source_week}.\n"
         "Target week: {target_week}.\n"
         "Top artists: {top_artists}.\n"
         "Top tracks: {top_tracks}.\n"
         "Return strict JSON with a single key: description."
     )
+    safe_first_name = first_name.strip() or "there"
 
     top_artists = ", ".join(
         dict.fromkeys(
@@ -49,6 +52,7 @@ def _build_description_prompts(
     )
 
     user_prompt = user_template.format(
+        first_name=safe_first_name,
         source_week=source_week,
         target_week=target_week,
         top_artists=top_artists or "Unknown",
@@ -65,6 +69,7 @@ def generate_playlist_description(
     *,
     source_week: str,
     target_week: str,
+    listener_first_name: str,
 ) -> str:
     """Generate a playlist description using an AI model.
 
@@ -74,6 +79,7 @@ def generate_playlist_description(
         top_tracks,
         source_week=source_week,
         target_week=target_week,
+        first_name=listener_first_name,
     )
 
     try:
