@@ -138,7 +138,7 @@ def assemble_final_description(description_body: str) -> str:
     Single source of truth used by both the production orchestrator and tests.
     """
     created_at = dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds")
-    credits_suffix = f" This playlist was created by an AI experiment from Johnsons Technologies on {created_at}."
+    credits_suffix = f" This playlist was created at {created_at}."
     body = " ".join(description_body.split()).strip().rstrip(".")
 
     full = f"{body}.{credits_suffix}"
