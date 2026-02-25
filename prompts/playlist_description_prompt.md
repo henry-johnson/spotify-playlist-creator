@@ -11,4 +11,5 @@ The description must:
 - Ground the rest of the paragraph in the source week listening data and how it informs the target week playlist
 - End with a forward-looking sentence introducing what new tracks we're going to explore this week (e.g. "This week we're diving into...")
 - Be one short paragraph, no emojis
+- Refer to the playlist as {target_week} — never call it a "{source_week}" or "source week" mix
 - Return strict JSON with a single key: description
