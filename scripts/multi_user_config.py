@@ -18,52 +18,46 @@ class UserCredentials(NamedTuple):
 def load_users_from_env() -> list[UserCredentials]:
     """Load Spotify user credentials from environment variables.
 
-    Expected format:
-        SPOTIFY_USER_HENRY_CLIENT_ID=...
-        SPOTIFY_USER_HENRY_CLIENT_SECRET=...
-        SPOTIFY_USER_HENRY_REFRESH_TOKEN=...
+    Global credentials (shared across all users):
+        SPOTIFY_CLIENT_ID=...
+        SPOTIFY_CLIENT_SECRET=...
+
+    Per-user refresh tokens:
+        SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON=...
+        SPOTIFY_USER_REFRESH_TOKEN_JANE_DOE=...
         etc.
 
     Returns a list of UserCredentials.
     """
-    users_dict: dict[str, dict[str, str]] = {}
+    client_id = os.environ.get("SPOTIFY_CLIENT_ID", "").strip()
+    client_secret = os.environ.get("SPOTIFY_CLIENT_SECRET", "").strip()
 
-    # Scan environment for SPOTIFY_USER_* variables
-    for key, value in os.environ.items():
-        if not key.startswith("SPOTIFY_USER_"):
-            continue
+    if not client_id or not client_secret:
+        print(
+            "⚠ SPOTIFY_CLIENT_ID and/or SPOTIFY_CLIENT_SECRET not set.",
+            flush=True,
+        )
+        return []
 
-        # Parse: SPOTIFY_USER_{USERNAME}_{FIELD}
-        parts = key.split("_")
-        if len(parts) < 5:
-            continue
-
-        username = parts[2]
-        field = "_".join(parts[3:]).lower()  # e.g., "client_id", "client_secret"
-
-        if username not in users_dict:
-            users_dict[username] = {}
-
-        users_dict[username][field] = value
-
-    # Validate and convert to UserCredentials
+    prefix = "SPOTIFY_USER_REFRESH_TOKEN_"
     users = []
-    for username, creds in sorted(users_dict.items()):
-        required_fields = {"client_id", "client_secret", "refresh_token"}
-        if not required_fields.issubset(creds.keys()):
-            missing = required_fields - set(creds.keys())
-            print(
-                f"⚠ User '{username}' missing credentials: {missing}",
-                flush=True,
-            )
+
+    for key, value in sorted(os.environ.items()):
+        if not key.startswith(prefix):
             continue
+        if not value.strip():
+            continue
+
+        # SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON → "Henry Johnson"
+        raw = key[len(prefix):]  # e.g. "HENRY_JOHNSON"
+        username = raw.replace("_", " ").title()  # e.g. "Henry Johnson"
 
         users.append(
             UserCredentials(
                 username=username,
-                spotify_client_id=creds["client_id"],
-                spotify_client_secret=creds["client_secret"],
-                spotify_refresh_token=creds["refresh_token"],
+                spotify_client_id=client_id,
+                spotify_client_secret=client_secret,
+                spotify_refresh_token=value.strip(),
             )
         )
 

@@ -326,7 +326,7 @@ def create_playlist_for_user(
                     "(Settings → User Management)\n"
                     "  2. Re-authorise with all required scopes and "
                     "update the\n"
-                    "     SPOTIFY_REFRESH_TOKEN secret.",
+                    "     SPOTIFY_USER_REFRESH_TOKEN_* secret.",
                     file=sys.stderr,
                 )
             raise
