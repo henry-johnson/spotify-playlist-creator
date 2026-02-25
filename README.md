@@ -36,9 +36,7 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 
 ## 2) Generate a Spotify refresh token (one-time)
 
-Required scopes: `user-top-read playlist-modify-private playlist-modify-public`.
-
-**Strongly recommended scope: `playlist-read-private`.** Without it, the script cannot detect an existing week playlist and will create a duplicate every run instead of overwriting.
+Required scopes: `user-top-read playlist-modify-private playlist-modify-public playlist-read-private`.
 
 **Optional scope: `ugc-image-upload`.** Required only if you want automatic playlist cover artwork upload.
 
