@@ -67,22 +67,22 @@ Copy `refresh_token` from the response and store it as `SPOTIFY_REFRESH_TOKEN` i
 
 Set these repository **Secrets**:
 
-| Secret | Purpose |
-|--------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for descriptions, recommendations, and artwork |
-| `SPOTIFY_CLIENT_ID` | Shared Spotify app client ID |
-| `SPOTIFY_CLIENT_SECRET` | Shared Spotify app client secret |
-| `SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON` | Per-user refresh token (repeat for each user) |
+| Secret                                     | Purpose                                                       |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| `OPENAI_API_KEY`                           | OpenAI API key for descriptions, recommendations, and artwork |
+| `SPOTIFY_CLIENT_ID`                        | Shared Spotify app client ID                                  |
+| `SPOTIFY_CLIENT_SECRET`                    | Shared Spotify app client secret                              |
+| `SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON` | Per-user refresh token (repeat for each user)                 |
 
 > Per-user secret naming convention: `SPOTIFY_USER_REFRESH_TOKEN_{FIRST}_{LAST}` (uppercase, underscores). The script auto-discovers all `SPOTIFY_USER_REFRESH_TOKEN_*` environment variables and creates a playlist for each user.
 
 Optional repository **Variables** (environment overrides):
 
-| Variable | Default | Purpose |
-|----------|---------|---------|
-| `SPOTIFY_TOP_TRACKS_LIMIT` | `15` | Number of top tracks to fetch per user |
-| `SPOTIFY_RECOMMENDATIONS_LIMIT` | `30` | Max tracks fetched from a previous week playlist |
-| `ENABLE_PLAYLIST_ARTWORK` | `1` | Set to `0` to disable AI artwork generation/upload |
+| Variable                        | Default | Purpose                                            |
+| ------------------------------- | ------- | -------------------------------------------------- |
+| `SPOTIFY_TOP_TRACKS_LIMIT`      | `15`    | Number of top tracks to fetch per user             |
+| `SPOTIFY_RECOMMENDATIONS_LIMIT` | `30`    | Max tracks fetched from a previous week playlist   |
+| `ENABLE_PLAYLIST_ARTWORK`       | `1`     | Set to `0` to disable AI artwork generation/upload |
 
 > Model names and temperatures are configured in `scripts/config.py` — no env var overrides needed.
 
@@ -115,7 +115,7 @@ Prompt customization:
 | `scripts/multi_user_config.py`      | Auto-discovers `SPOTIFY_USER_REFRESH_TOKEN_*` env vars and loads per-user credentials.                                 |
 | `scripts/model_provider.py`         | Abstract `AIProvider` interface for pluggable LLM/image backends.                                                      |
 | `scripts/model_provider_openai.py`  | OpenAI API implementation of `AIProvider` (text + image generation).                                                   |
-| `scripts/metadata.py`               | AI playlist description generation via OpenAI (`gpt-5.2`).                                                              |
+| `scripts/metadata.py`               | AI playlist description generation via OpenAI (`gpt-5.2`).                                                             |
 | `scripts/recommendations.py`        | AI recommendation engine — sends listening data to `gpt-5.2` and gets back Spotify search queries for music discovery. |
 | `scripts/artwork.py`                | AI playlist artwork generation (OpenAI image model) with Pillow text overlay and Spotify upload payload handling.      |
 | `scripts/discovery.py`              | Track mix builder: combines AI recommendations, familiar anchors, and genre/artist search into a ~100-track playlist.  |

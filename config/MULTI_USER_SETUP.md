@@ -40,13 +40,13 @@ curl -X POST https://accounts.spotify.com/api/token \
 
 Go to: **Settings → Secrets and variables → Actions → New repository secret**
 
-| Secret | Value |
-|--------|-------|
-| `OPENAI_API_KEY` | Your OpenAI API key (shared) |
-| `SPOTIFY_CLIENT_ID` | Spotify app client ID (shared) |
-| `SPOTIFY_CLIENT_SECRET` | Spotify app client secret (shared) |
-| `SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON` | Henry's refresh token |
-| `SPOTIFY_USER_REFRESH_TOKEN_PENNY_JOHNSON` | Penny's refresh token |
+| Secret                                     | Value                              |
+| ------------------------------------------ | ---------------------------------- |
+| `OPENAI_API_KEY`                           | Your OpenAI API key (shared)       |
+| `SPOTIFY_CLIENT_ID`                        | Spotify app client ID (shared)     |
+| `SPOTIFY_CLIENT_SECRET`                    | Spotify app client secret (shared) |
+| `SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON` | Henry's refresh token              |
+| `SPOTIFY_USER_REFRESH_TOKEN_PENNY_JOHNSON` | Penny's refresh token              |
 
 > **Naming convention**: `SPOTIFY_USER_REFRESH_TOKEN_{FIRST}_{LAST}` — uppercase, underscores between names. The script converts this to a display name (e.g. `Henry Johnson`).
 
@@ -72,9 +72,9 @@ env:
 
 ### Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| 403 on `GET /v1/me` | Add the user's Spotify email to User Management in the developer dashboard |
-| Missing required scopes | Regenerate the refresh token with all 5 scopes |
-| User not found | Check the env var name matches `SPOTIFY_USER_REFRESH_TOKEN_{FIRST}_{LAST}` exactly |
-| Workflow not running | Verify all secrets exist and the workflow is enabled under Actions settings |
+| Problem                 | Solution                                                                           |
+| ----------------------- | ---------------------------------------------------------------------------------- |
+| 403 on `GET /v1/me`     | Add the user's Spotify email to User Management in the developer dashboard         |
+| Missing required scopes | Regenerate the refresh token with all 5 scopes                                     |
+| User not found          | Check the env var name matches `SPOTIFY_USER_REFRESH_TOKEN_{FIRST}_{LAST}` exactly |
+| Workflow not running    | Verify all secrets exist and the workflow is enabled under Actions settings        |
