@@ -36,14 +36,18 @@ Every Monday (or on manual trigger), GitHub Actions runs `scripts/create_weekly_
 
 ## 2) Generate a Spotify refresh token (one-time)
 
-Required scopes: `user-top-read playlist-modify-private playlist-modify-public playlist-read-private`.
+Required scopes:
 
-**Optional scope: `ugc-image-upload`.** Required only if you want automatic playlist cover artwork upload.
+- `user-top-read`
+- `playlist-modify-private`
+- `playlist-modify-public`
+- `playlist-read-private`
+- `ugc-image-upload`
 
 Example authorization URL:
 
 ```text
-https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8888%2Fcallback&scope=user-top-read%20playlist-modify-private%20playlist-modify-public%20playlist-read-private
+https://accounts.spotify.com/authorize?client_id=YOUR_CLIENT_ID&response_type=code&redirect_uri=http%3A%2F%2F127.0.0.1%3A8888%2Fcallback&scope=user-top-read%20playlist-modify-private%20playlist-modify-public%20playlist-read-private%20ugc-image-upload
 ```
 
 After approving, Spotify redirects with a `code=...` query param. Exchange it:

@@ -1,15 +1,49 @@
+You are writing a description for a weekly Spotify playlist.
+
 Generate a description for my weekly Spotify playlist.
 
 Source week: {source_week}
 Target week: {target_week}
 Source week artists: {top_artists}
 Source week tracks: {top_tracks}
+First name: {first_name}
 
-The description must:
+Structural requirements (mandatory):
 
-- Start with exactly one short, funny, sharply sarcastic roast of {first_name}'s music taste (insulting but playful; no profanity)
-- Ground the rest of the paragraph in the source week listening data and how it informs the target week playlist
-- End with a forward-looking sentence introducing what new tracks we're going to explore this week (e.g. "This week we're diving into...")
-- Be one short paragraph, no emojis
-- Refer to the playlist as {target_week} — never call it a "{source_week}" or "source week" mix
-- Return strict JSON with a single key: description
+- Exactly 3 or 4 sentences total.
+- One single paragraph.
+- No line breaks.
+- No emojis.
+
+Sentence rules:
+
+1. The first sentence must be a short, sharply sarcastic roast of {first_name}'s music taste.
+   - Maximum 18 words.
+   - Playfully insulting, not cruel.
+   - No profanity.
+   - No clichés.
+
+2. The middle sentence(s) must:
+   - Explicitly reference at least two specific names from {top_artists} or {top_tracks}.
+   - Clearly connect that listening behaviour to the direction or mood of {target_week}.
+   - Avoid vague phrases like “inspired by your recent listening” or “a curated mix.”
+
+3. The final sentence must:
+   - Begin with: "This week we're diving into"
+   - Explicitly mention {target_week}
+   - Introduce what new sonic territory, themes, or energy we’re exploring.
+
+Content constraints:
+
+- Do NOT refer to anything as a "{source_week}" mix.
+- Do NOT describe the playlist as curated, crafted, or handpicked.
+- Tone must be witty, observant, and confident.
+- Ground all commentary in the provided listening data.
+- No generic filler language.
+
+Output format:
+
+Return strict JSON with a single key:
+{
+"description": "..."
+}

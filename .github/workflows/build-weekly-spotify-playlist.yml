@@ -26,14 +26,11 @@ jobs:
       - name: Create weekly playlists for all users
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          # Users: Add secrets for each user following this pattern:
-          # SPOTIFY_USER_{USERNAME}_CLIENT_ID
-          # SPOTIFY_USER_{USERNAME}_CLIENT_SECRET
-          # SPOTIFY_USER_{USERNAME}_REFRESH_TOKEN
 
           SPOTIFY_CLIENT_ID: ${{ secrets.SPOTIFY_CLIENT_ID }}
           SPOTIFY_CLIENT_SECRET: ${{ secrets.SPOTIFY_CLIENT_SECRET }}
 
           SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON: ${{ secrets.SPOTIFY_USER_REFRESH_TOKEN_HENRY_JOHNSON }}
+          SPOTIFY_USER_REFRESH_TOKEN_RAY_JOHNSON: ${{ secrets.SPOTIFY_USER_REFRESH_TOKEN_RAY_JOHNSON }}
           SPOTIFY_USER_REFRESH_TOKEN_PENNY_JOHNSON: ${{ secrets.SPOTIFY_USER_REFRESH_TOKEN_PENNY_JOHNSON }}
         run: python scripts/create_weekly_playlist.py
